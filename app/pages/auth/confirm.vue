@@ -14,7 +14,22 @@ const pendingConfirmationUrl = ref('')
 async function checkInviteSession() {
   const confirmationUrl = route.query.confirmation_url
   if (typeof confirmationUrl === 'string' && confirmationUrl) {
-    pendingConfirmationUrl.value = confirmationUrl
+    const params = new URLSearchParams()
+    const inviteType = route.query.type
+    const redirectTo = route.query.redirect_to
+
+    if (typeof inviteType === 'string' && !confirmationUrl.includes('type=')) {
+      params.set('type', inviteType)
+    }
+
+    if (typeof redirectTo === 'string' && !confirmationUrl.includes('redirect_to=')) {
+      params.set('redirect_to', redirectTo)
+    }
+
+    const separator = confirmationUrl.includes('?') ? '&' : '?'
+    pendingConfirmationUrl.value = params.toString()
+      ? `${confirmationUrl}${separator}${params.toString()}`
+      : confirmationUrl
     loading.value = false
     return
   }
