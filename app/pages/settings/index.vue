@@ -162,7 +162,7 @@ onMounted(load)
 
 <template>
   <section class="space-y-6">
-    <div><p class="eyebrow">Llogaria</p><h2 class="text-2xl font-semibold text-highlighted">Settings</h2><p class="muted">Menaxho detajet e profilit dhe dokumentet e kompanisë.</p></div>
+    <div><h2 class="text-2xl font-semibold text-highlighted">Settings</h2><p class="muted">Menaxho detajet e profilit dhe dokumentet e kompanisë.</p></div>
     <UAlert v-if="successMessage" color="success" variant="subtle" :description="successMessage" />
     <UAlert v-if="errorMessage" color="error" variant="subtle" title="Gabim" :description="errorMessage" />
 

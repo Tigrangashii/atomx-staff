@@ -51,11 +51,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
-    <UCard class="w-full max-w-md shadow-sm" :ui="{ body: 'p-8 sm:p-10' }">
+  <main class="relative flex min-h-screen items-center justify-center overflow-hidden bg-[url(/images/background.png)] bg-cover bg-center bg-no-repeat px-4 py-12">
+    <UCard class="relative z-10 w-full max-w-md shadow-sm" :ui="{ body: 'p-8 sm:p-10' }">
       <div class="mb-8 text-center">
         <img class="mx-auto mb-4 h-24 w-48 object-contain" src="/images/atomx-logo.png" alt="AtomX Solutions" />
-        <h1 class="text-2xl font-semibold text-slate-900">AtomX Staff</h1>
+        <h1 class="text-2xl font-semibold text-slate-900" style="font-family: Aptos, sans-serif;">AtomX Staff</h1>
         <p class="mt-2 text-sm text-slate-500">Kyçu në panelin e menaxhimit të stafit</p>
       </div>
 
@@ -63,14 +63,14 @@ onMounted(() => {
 
       <form class="space-y-5" @submit.prevent="login">
         <UFormField label="Email" name="email">
-          <UInput v-model="email" type="email" placeholder="emri@atomxsolutions.com" class="w-full" required />
+          <UInput v-model="email" type="email" placeholder="emri@atomx-solutions.com" class="w-full" required />
         </UFormField>
 
         <UFormField label="Fjalëkalimi" name="password">
           <UInput v-model="password" type="password" placeholder="••••••••" class="w-full" required />
         </UFormField>
 
-        <UButton type="submit" label="Kyçu" block size="lg" :loading="loading" />
+        <UButton type="submit" label="Kyçu" block size="lg" :loading="loading" class="cursor-pointer" />
       </form>
 
       <p class="mt-8 text-center text-xs text-slate-400">AtomX Solutions · Staff Management</p>

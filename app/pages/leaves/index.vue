@@ -214,7 +214,7 @@ onMounted(load)
 <template>
   <section class="space-y-6">
     <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-      <div><p class="eyebrow">Menaxhimi</p><h2 class="text-2xl font-semibold text-highlighted">Pushimet</h2><p class="muted">Apliko për pushim dhe shqyrto kërkesat e ekipit.</p></div>
+      <div><h2 class="text-2xl font-semibold text-highlighted">Pushimet</h2><p class="muted">Apliko për pushim dhe shqyrto kërkesat e ekipit.</p></div>
       <div class="flex flex-wrap gap-3"><UButton v-if="canReview" to="/leaves/calendar" label="Kalendari i pushimeve" icon="i-lucide-calendar-range" color="neutral" variant="soft" /><UButton v-if="canReview" label="Ditët e pushimit" icon="i-lucide-table" color="neutral" variant="soft" @click="balancesModalOpen = true" /><UButton label="Apliko për pushim" icon="i-lucide-plus" @click="openModal" class="cursor-pointer" /></div>
     </div>
     <UAlert v-if="successMessage" color="success" variant="subtle" :description="successMessage" />

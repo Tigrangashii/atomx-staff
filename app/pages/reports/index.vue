@@ -82,7 +82,7 @@ onMounted(load)
 
 <template>
   <section class="space-y-6">
-    <div><p class="eyebrow">Raporti ditor</p><h2 class="text-2xl font-semibold text-highlighted">Raportet ditore</h2><p class="muted">Ju lutem plotësoni raportin para përfundimit të orarit të punës.</p></div>
+    <div><h2 class="text-2xl font-semibold text-highlighted">Raportet ditore</h2><p class="muted">Ju lutem plotësoni raportin para përfundimit të orarit të punës.</p></div>
     <UAlert v-if="successMessage" color="success" variant="subtle" :description="successMessage" /><UAlert v-if="errorMessage" color="error" variant="subtle" title="Gabim" :description="errorMessage" />
 
     <UCard><template #header><h3 class="font-semibold text-highlighted">Raporti i ditës</h3><p class="mt-1 text-sm text-muted">Përshëndetje {{ profileName }}. Emri dhe email-i yt merren automatikisht kur e dorëzon këtë raport.</p></template>

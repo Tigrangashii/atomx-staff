@@ -214,7 +214,6 @@ onMounted(load)
   <section class="space-y-6">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <p class="eyebrow">Menaxhimi</p>
         <h2 class="text-2xl font-semibold text-highlighted">Raportet e stafit</h2>
         <p class="muted">Shiko raportet e dorëzuara nga përdoruesit sipas datës dhe personit.</p>
       </div>

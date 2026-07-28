@@ -113,17 +113,17 @@ onBeforeUnmount(() => {
     <div v-if="errorMessage" class="mb-5"><UAlert color="error" variant="subtle" title="Gabim" :description="errorMessage" /></div>
 
     <div class="page-intro">
-      <div>
+      <div class="w-full text-center sm:w-auto sm:text-left">
         <h2 v-if="canSeeDashboard">Mirë se erdhe, {{ fullName }}</h2>
         <h2 v-else>Mirë se erdhe në AtomX Staff</h2>
         <p class="muted">{{ canSeeDashboard ? 'Menaxho ekipin, pushimet dhe aktivitetin e përditshëm.' : 'Regjistro hyrjen në punë për të parë panelin tënd.' }}</p>
       </div>
-      <span class="date-pill flex flex-col items-end gap-0.5"><span>{{ currentDateLabel }}</span><span class="text-sm font-medium text-muted">{{ currentTimeLabel }}</span></span>
+      <span class="date-pill flex flex-col items-center gap-0.5 self-center text-center sm:self-auto sm:items-end sm:text-right"><span>{{ currentDateLabel }}</span><span class="text-sm font-medium text-muted">{{ currentTimeLabel }}</span></span>
     </div>
 
     <div v-if="loading" class="stats-grid"><article v-for="i in 4" :key="i" class="stat-card"><USkeleton class="h-24 w-full" /></article></div>
     <template v-else-if="canSeeDashboard">
-      <div class="stats-grid"><article v-for="stat in stats" :key="stat.label" class="stat-card"><span class="stat-label">{{ stat.label }}</span><strong class="stat-value">{{ stat.amount }}</strong><span class="stat-detail">{{ stat.detail }}</span></article></div>
+      <div class="stats-grid"><article v-for="(stat, index) in stats" :key="stat.label" class="stat-card group"><div class="mb-3 flex items-start justify-between gap-3"><span class="stat-label">{{ stat.label }}</span><span class="stat-icon"><UIcon :name="['i-lucide-users-round', 'i-lucide-calendar-clock', 'i-lucide-clock-3', 'i-lucide-file-check-2'][index]" class="size-5" /></span></div><strong class="stat-value">{{ stat.amount }}</strong><span class="stat-detail">{{ stat.detail }}</span></article></div>
       <UCard v-if="isReviewer" class="mt-6"><template #header><div><h3 class="font-semibold text-highlighted">Aktiviteti i ekipit</h3><p class="mt-1 text-sm text-muted">Hyrjet e sotme dhe kërkesat për pushim në pritje.</p></div></template><div class="grid gap-6 lg:grid-cols-2"><div><h4 class="mb-3 text-sm font-semibold text-highlighted">Hyrjet sot</h4><div class="divide-y divide-default rounded-lg border border-default"><div v-for="entry in todayEntries" :key="entry.id" class="flex items-center justify-between px-4 py-3 text-sm"><span class="font-medium text-highlighted">{{ entry.employee?.full_name || 'Pa emër' }}</span><span class="text-muted">{{ entry.check_in ? new Date(entry.check_in).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—' }}</span></div><p v-if="!todayEntries.length" class="px-4 py-6 text-center text-sm text-muted">Nuk ka hyrje të regjistruara sot.</p></div></div><div><h4 class="mb-3 text-sm font-semibold text-highlighted">Pushime në pritje</h4><div class="divide-y divide-default rounded-lg border border-default"><div v-for="leave in pendingLeaves" :key="leave.id" class="flex items-center justify-between gap-3 px-4 py-3 text-sm"><span class="font-medium text-highlighted">{{ leave.employee?.full_name || 'Pa emër' }}</span><span class="text-right text-muted">{{ leave.start_date }} – {{ leave.end_date }}</span></div><p v-if="!pendingLeaves.length" class="px-4 py-6 text-center text-sm text-muted">Nuk ka kërkesa në pritje.</p></div></div></div></UCard>
       <UCard v-else><div class="flex flex-col items-center gap-3 py-8 text-center"><UIcon name="i-lucide-check-circle-2" class="size-9 text-success" /><h3 class="text-lg font-semibold text-highlighted">Hyrja u regjistrua</h3><p class="text-sm text-muted">Ora e hyrjes dhe kërkesat për pushim paraqiten në kartelat më lart.</p></div></UCard>
     </template>

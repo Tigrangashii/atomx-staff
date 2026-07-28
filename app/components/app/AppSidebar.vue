@@ -43,7 +43,7 @@ onMounted(loadRole)
         <img class="size-10 shrink-0 object-contain" src="/images/atomx-logo.png" alt="AtomX Solutions" />
         <div v-if="!collapsed" class="min-w-0">
           <strong class="block truncate text-sm text-highlighted">AtomX Staff</strong>
-          <span class="block truncate text-xs text-muted">AtomX Solutions</span>
+          <span class="block truncate text-xs text-muted">AtomX Solutions SH.P.K</span>
         </div>
       </div>
     </template>

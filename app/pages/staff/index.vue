@@ -164,7 +164,6 @@ onMounted(loadStaff)
   <section class="space-y-6">
     <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
       <div>
-        <p class="eyebrow">Menaxhimi</p>
         <h2 class="text-2xl font-semibold text-slate-900">Stafi</h2>
         <p class="muted">Shto dhe menaxho anëtarët e ekipit të AtomX Solutions.</p>
       </div>

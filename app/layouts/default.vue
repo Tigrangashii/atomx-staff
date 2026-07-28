@@ -17,7 +17,14 @@
         </UDashboardNavbar>
       </template>
 
-      <main class="page-content">
+      <main class="page-content pt-16 sm:pt-0">
+        <UDashboardSidebarToggle
+          class="fixed left-4 top-4 z-50 sm:hidden"
+          color="neutral"
+          variant="outline"
+          size="lg"
+          aria-label="Hap menunë"
+        />
         <slot />
       </main>
     </UDashboardPanel>

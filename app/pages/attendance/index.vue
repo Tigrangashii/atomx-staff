@@ -233,7 +233,6 @@ watch(
   <section class="space-y-6">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <p class="eyebrow">Puna</p>
         <h2 class="text-2xl font-semibold text-highlighted">Hyrje / Dalje</h2>
         <p class="muted">Regjistro orarin e punës për sot.</p>
       </div>
