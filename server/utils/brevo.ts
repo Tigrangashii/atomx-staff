@@ -19,6 +19,11 @@ function escapeHtml(value: unknown) {
 
 export { escapeHtml }
 
+export function renderAtomxEmail(options: { eyebrow: string; title: string; intro: string; content: string; accent?: string }) {
+  const accent = options.accent || '#287cf5'
+  return `<!doctype html><html><body style="margin:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#10213f;"><div style="padding:42px 18px;background:linear-gradient(135deg,#eef5ff 0%,#f8fafc 55%,#e7f7ff 100%);"><div style="max-width:620px;margin:0 auto;"><div style="padding:0 10px 18px;text-align:left;"><span style="font-size:14px;font-weight:700;letter-spacing:1.4px;color:${accent};">ATOMX SOLUTIONS</span><span style="float:right;color:#64748b;font-size:13px;">AtomX Staff</span></div><div style="background:#fff;border:1px solid #dbe5f0;border-radius:20px;box-shadow:0 14px 40px rgba(30,64,115,.12);overflow:hidden;"><div style="height:6px;background:${accent};"></div><div style="padding:38px 42px 42px;"><div style="display:inline-block;padding:7px 12px;border-radius:999px;background:${accent}16;color:${accent};font-size:12px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;">${escapeHtml(options.eyebrow)}</div><h1 style="margin:18px 0 12px;font-size:28px;line-height:1.2;color:#10213f;">${escapeHtml(options.title)}</h1><p style="margin:0 0 28px;color:#64748b;font-size:16px;line-height:1.65;">${escapeHtml(options.intro)}</p>${options.content}</div></div><p style="margin:22px 0 0;text-align:center;color:#94a3b8;font-size:12px;line-height:1.6;">Ky është email automatik nga AtomX Staff.<br>Ju lutem mos iu përgjigjni këtij email-i.</p></div></div></body></html>`
+}
+
 export async function sendBrevoEmail(event: any, input: EmailInput) {
   const config = useRuntimeConfig(event)
   const recipient = input.recipient.trim().toLowerCase()

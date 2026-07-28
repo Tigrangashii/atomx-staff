@@ -1,6 +1,6 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
 import { createClient } from '@supabase/supabase-js'
-import { escapeHtml, sendBrevoEmail } from '../../utils/brevo'
+import { escapeHtml, renderAtomxEmail, sendBrevoEmail } from '../../utils/brevo'
 
 const leaveLabels: Record<string, string> = { annual: 'Pushim vjetor', sick: 'Pushim mjekësor', unpaid: 'Pa pagesë', other: 'Tjetër' }
 
@@ -33,7 +33,12 @@ export default defineEventHandler(async (event) => {
   const { data: reviewers } = await admin.from('profiles').select('id, email').in('role', ['owner', 'manager']).eq('is_active', true).not('email', 'is', null)
   const name = profile.full_name || authUser.email || 'Punëtori'
   const subject = 'Kërkesë e re për pushim'
-  const htmlContent = `<h2>Kërkesë e re për pushim</h2><p><strong>${escapeHtml(name)}</strong> ka kërkuar pushim.</p><p><strong>Lloji:</strong> ${escapeHtml(leaveLabels[body.leaveType] || body.leaveType)}<br><strong>Periudha:</strong> ${escapeHtml(body.startDate)} – ${escapeHtml(body.endDate)}<br><strong>Arsyeja:</strong> ${escapeHtml(body.reason || 'Pa arsye')}</p>`
+  const htmlContent = renderAtomxEmail({
+    eyebrow: 'Kërkesë për shqyrtim',
+    title: 'Kërkesë e re për pushim',
+    intro: `${name} ka dërguar një kërkesë të re për pushim.`,
+    content: `<div style="padding:20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;font-size:15px;line-height:2;"><strong>Lloji:</strong> ${escapeHtml(leaveLabels[body.leaveType] || body.leaveType)}<br><strong>Periudha:</strong> ${escapeHtml(body.startDate)} – ${escapeHtml(body.endDate)}<br><strong>Arsyeja:</strong> ${escapeHtml(body.reason || 'Pa arsye')}</div><p style="margin:24px 0 0;color:#64748b;font-size:13px;">Hape AtomX Staff për ta shqyrtuar kërkesën.</p>`
+  })
 
   for (const reviewer of reviewers || []) {
     await admin.from('notifications').insert({ user_id: reviewer.id, title: subject, message: `${name} ka kërkuar pushim nga ${body.startDate} deri më ${body.endDate}.` })

@@ -1,7 +1,5 @@
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
-import { escapeHtml, sendBrevoEmail } from '../../../utils/brevo'
-
-const leaveLabels: Record<string, string> = { annual: 'Pushim vjetor', sick: 'Pushim mjekësor', unpaid: 'Pa pagesë', other: 'Tjetër' }
+import { escapeHtml, renderAtomxEmail, sendBrevoEmail } from '../../../utils/brevo'
 
 export default defineEventHandler(async (event) => {
   const authUser = await serverSupabaseUser(event)
@@ -15,25 +13,28 @@ export default defineEventHandler(async (event) => {
   if (!reviewer || !['owner', 'manager'].includes(reviewer.role)) throw createError({ statusCode: 403, statusMessage: 'Nuk ke të drejtë ta shqyrtosh këtë kërkesë.' })
 
   const id = getRouterParam(event, 'id')
-  const { data: request, error: requestError } = await supabase.from('leave_requests').select('id, employee_id, leave_type, start_date, end_date, rejection_reason, employee:profiles!leave_requests_employee_id_fkey(id, full_name, email)').eq('id', id).single()
+  const { data: request, error: requestError } = await supabase.from('leave_requests').select('id, employee_id, leave_type, start_date, end_date, employee:profiles!leave_requests_employee_id_fkey(id, full_name, email)').eq('id', id).single()
   if (requestError || !request) throw createError({ statusCode: 404, statusMessage: 'Kërkesa nuk u gjet.' })
 
   const { error } = await supabase.from('leave_requests').update({ status: body.status, rejection_reason: body.status === 'rejected' ? body.rejectionReason?.trim() : null, approved_by: authUser.sub, approved_at: new Date().toISOString() }).eq('id', id)
   if (error) throw createError({ statusCode: 400, statusMessage: error.message })
 
   const employee = Array.isArray(request.employee) ? request.employee[0] : request.employee
-  const email = employee?.email
-  if (email) {
+  if (employee?.email) {
     const approved = body.status === 'approved'
     const subject = approved ? 'Kërkesa juaj për pushim është aprovuar' : 'Kërkesa juaj për pushim është refuzuar'
-    const htmlContent = approved
-      ? `<h2>Kërkesa juaj për pushim është aprovuar</h2><p>Periudha: <strong>${escapeHtml(request.start_date)} – ${escapeHtml(request.end_date)}</strong></p>`
-      : `<h2>Kërkesa juaj për pushim është refuzuar</h2><p>Periudha: <strong>${escapeHtml(request.start_date)} – ${escapeHtml(request.end_date)}</strong></p><p><strong>Arsyeja:</strong> ${escapeHtml(body.rejectionReason)}</p>`
+    const htmlContent = renderAtomxEmail({
+      eyebrow: approved ? 'Pushim i aprovuar' : 'Pushim i refuzuar',
+      title: approved ? 'Kërkesa juaj u aprovua' : 'Kërkesa juaj u refuzua',
+      intro: approved ? 'Kërkesa juaj për pushim është aprovuar nga menaxhmenti.' : 'Kërkesa juaj për pushim nuk u aprovua.',
+      accent: approved ? '#16a34a' : '#dc2626',
+      content: `<div style="padding:20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;font-size:15px;line-height:2;"><strong>Periudha:</strong> ${escapeHtml(request.start_date)} – ${escapeHtml(request.end_date)}${approved ? '' : `<br><strong>Arsyeja:</strong> ${escapeHtml(body.rejectionReason)}`}</div>`
+    })
     const config = useRuntimeConfig(event)
     const { createClient } = await import('@supabase/supabase-js')
     const admin = createClient(String(config.public.supabase.url), String(config.supabaseServiceRoleKey), { auth: { autoRefreshToken: false, persistSession: false } })
     await admin.from('notifications').insert({ user_id: request.employee_id, title: subject, message: approved ? 'Kërkesa juaj për pushim u aprovua.' : `Kërkesa u refuzua: ${body.rejectionReason}` })
-    await sendBrevoEmail(event, { emailType: approved ? 'leave_approved' : 'leave_rejected', recipient: email, leaveRequestId: request.id, subject, htmlContent })
+    await sendBrevoEmail(event, { emailType: approved ? 'leave_approved' : 'leave_rejected', recipient: employee.email, leaveRequestId: request.id, subject, htmlContent })
   }
 
   return { success: true }
