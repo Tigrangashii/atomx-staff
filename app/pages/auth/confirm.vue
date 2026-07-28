@@ -10,8 +10,22 @@ const saving = ref(false)
 const ready = ref(false)
 const errorMessage = ref('')
 const pendingConfirmationUrl = ref('')
+const inviteTokenHash = ref('')
+const inviteType = ref<'invite' | 'recovery' | 'email_change' | 'magiclink' | 'signup'>('invite')
 
 async function checkInviteSession() {
+  const tokenHash = route.query.token_hash
+  const tokenType = route.query.type
+  if (typeof tokenHash === 'string' && tokenHash) {
+    inviteTokenHash.value = tokenHash
+    if (typeof tokenType === 'string' && ['invite', 'recovery', 'email_change', 'magiclink', 'signup'].includes(tokenType)) {
+      inviteType.value = tokenType as typeof inviteType.value
+    }
+    ready.value = true
+    loading.value = false
+    return
+  }
+
   const confirmationUrl = route.query.confirmation_url
   if (typeof confirmationUrl === 'string' && confirmationUrl) {
     const params = new URLSearchParams()
@@ -65,6 +79,20 @@ async function setPassword() {
   }
 
   saving.value = true
+
+  if (inviteTokenHash.value) {
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      token_hash: inviteTokenHash.value,
+      type: inviteType.value
+    })
+
+    if (verifyError) {
+      saving.value = false
+      errorMessage.value = 'Ftesa ka skaduar ose është përdorur. Kërko një ftesë të re.'
+      return
+    }
+  }
+
   const { error } = await supabase.auth.updateUser({ password: password.value })
   saving.value = false
 
@@ -99,10 +127,6 @@ onMounted(async () => {
       </div>
 
       <div v-if="loading" class="py-6 text-center text-sm text-slate-500">Duke verifikuar ftesën...</div>
-      <div v-else-if="pendingConfirmationUrl" class="space-y-5 text-center">
-        <p class="text-sm leading-6 text-slate-600">Kliko butonin për ta aktivizuar ftesën dhe për të vendosur fjalëkalimin.</p>
-        <UButton label="Vazhdo me ftesën" block size="lg" @click="continueInvitation" />
-      </div>
       <UAlert v-else-if="errorMessage" color="error" variant="subtle" title="Ftesa nuk mund të përdoret" :description="errorMessage" />
 
       <form v-else-if="ready" class="space-y-5" @submit.prevent="setPassword">
