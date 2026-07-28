@@ -143,21 +143,17 @@ async function submitRequest() {
   }
 
   saving.value = true
-  const { error } = await supabase.from('leave_requests').insert({
-    employee_id: currentUser.id,
-    email: form.email,
-    phone: form.phone,
-    leave_type: form.leaveType,
-    start_date: form.startDate,
-    end_date: form.endDate,
-    reason: form.reason || null
-  })
-  saving.value = false
-
-  if (error) {
-    errorMessage.value = error.message
+  try {
+    await $fetch('/api/leaves/request', {
+      method: 'POST',
+      body: { leaveType: form.leaveType, startDate: form.startDate, endDate: form.endDate, email: form.email, phone: form.phone, reason: form.reason }
+    })
+  } catch (error: any) {
+    errorMessage.value = error?.data?.statusMessage || error?.data?.message || error?.message || 'Kërkesa nuk u dërgua.'
+    saving.value = false
     return
   }
+  saving.value = false
 
   modalOpen.value = false
   successMessage.value = 'Kërkesa për pushim u dërgua.'
@@ -175,16 +171,19 @@ async function reviewRequest(request: LeaveRequest, status: 'approved' | 'reject
   errorMessage.value = ''
   successMessage.value = ''
   reviewSavingId.value = request.id
-  const { error } = await supabase
-    .from('leave_requests')
-    .update({ status, approved_by: user.value?.id, approved_at: new Date().toISOString(), rejection_reason: rejectionReasonValue })
-    .eq('id', request.id)
+  let error: any = null
+  try {
+    await $fetch(`/api/leaves/${request.id}/review`, { method: 'PATCH', body: { status, rejectionReason: rejectionReasonValue } })
+  } catch (requestError: any) {
+    error = requestError?.data || requestError
+  }
 
   reviewSavingId.value = null
   if (error) {
-    errorMessage.value = error.message.includes('leave_requests_no_approved_overlap')
+    const message = error?.statusMessage || error?.message || 'Kërkesa nuk u shqyrtua.'
+    errorMessage.value = message.includes('leave_requests_no_approved_overlap')
       ? 'Ky punëtor ka tashmë pushim të aprovuar në këtë periudhë.'
-      : error.message
+      : message
   } else {
     successMessage.value = status === 'approved' ? 'Kërkesa u aprovua dhe u ruajt.' : 'Kërkesa u refuzua dhe u ruajt.'
     await load()
