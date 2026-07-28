@@ -20,7 +20,7 @@ type LeaveRequest = {
 type Employee = { id: string; full_name: string }
 type OfficialHoliday = { id: string; name: string; holiday_date: string }
 
-definePageMeta({ middleware: ['auth'] })
+definePageMeta({ middleware: ['auth', 'permissions'] })
 
 const supabase = useSupabaseClient()
 const requests = ref<LeaveRequest[]>([])

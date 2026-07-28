@@ -11,7 +11,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     .maybeSingle()
 
   const role = profile?.role || 'user'
-  const managerOnlyRoutes = ['/staff', '/reports/team']
+  const managerOnlyRoutes = ['/staff', '/reports/team', '/leaves/calendar']
   const ownerOnlyRoutes = ['/projects']
 
   if (managerOnlyRoutes.some((route) => to.path === route || to.path.startsWith(`${route}/`)) && !['owner', 'manager'].includes(role)) {

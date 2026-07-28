@@ -13,11 +13,20 @@ export default defineEventHandler(async (event) => {
   if (!reviewer || !['owner', 'manager'].includes(reviewer.role)) throw createError({ statusCode: 403, statusMessage: 'Nuk ke të drejtë ta shqyrtosh këtë kërkesë.' })
 
   const id = getRouterParam(event, 'id')
-  const { data: request, error: requestError } = await supabase.from('leave_requests').select('id, employee_id, leave_type, start_date, end_date, employee:profiles!leave_requests_employee_id_fkey(id, full_name, email)').eq('id', id).single()
+  const { data: request, error: requestError } = await supabase.from('leave_requests').select('id, employee_id, leave_type, start_date, end_date, status, employee:profiles!leave_requests_employee_id_fkey(id, full_name, email)').eq('id', id).single()
   if (requestError || !request) throw createError({ statusCode: 404, statusMessage: 'Kërkesa nuk u gjet.' })
 
-  const { error } = await supabase.from('leave_requests').update({ status: body.status, rejection_reason: body.status === 'rejected' ? body.rejectionReason?.trim() : null, approved_by: authUser.sub, approved_at: new Date().toISOString() }).eq('id', id)
+  if (request.status !== 'pending') throw createError({ statusCode: 409, statusMessage: 'Kjo kerkese eshte shqyrtuar me heret.' })
+
+  const { data: updatedRequest, error } = await supabase
+    .from('leave_requests')
+    .update({ status: body.status, rejection_reason: body.status === 'rejected' ? body.rejectionReason?.trim() : null, approved_by: authUser.sub, approved_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('status', 'pending')
+    .select('id')
+    .maybeSingle()
   if (error) throw createError({ statusCode: 400, statusMessage: error.message })
+  if (!updatedRequest) throw createError({ statusCode: 409, statusMessage: 'Kjo kerkese eshte shqyrtuar me heret.' })
 
   const employee = Array.isArray(request.employee) ? request.employee[0] : request.employee
   if (employee?.email) {

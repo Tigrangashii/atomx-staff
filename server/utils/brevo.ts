@@ -8,6 +8,8 @@ type EmailInput = {
   htmlContent: string
 }
 
+type EmailLogStatus = 'pending' | 'sent' | 'failed'
+
 function escapeHtml(value: unknown) {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
@@ -29,6 +31,48 @@ export async function sendBrevoEmail(event: any, input: EmailInput) {
   const recipient = input.recipient.trim().toLowerCase()
   const senderEmail = String(config.brevoSenderEmail || '').trim()
   const senderName = String(config.brevoSenderName || 'AtomX Staff')
+  const admin = createClient(String(config.public.supabase.url), String(config.supabaseServiceRoleKey), {
+    auth: { autoRefreshToken: false, persistSession: false }
+  })
+  const dedupeKey = input.leaveRequestId ? `${input.emailType}:${input.leaveRequestId}:${recipient}` : null
+  let logId: string | null = null
+
+  if (dedupeKey) {
+    const { data: existing } = await admin.from('email_logs').select('id, status').eq('dedupe_key', dedupeKey).maybeSingle()
+    if (existing?.status === 'sent' || existing?.status === 'pending') {
+      return { status: existing.status as EmailLogStatus, errorMessage: null, skipped: true }
+    }
+
+    if (existing?.status === 'failed') {
+      const { data: retried, error: retryError } = await admin
+        .from('email_logs')
+        .update({ status: 'pending', error_message: null })
+        .eq('id', existing.id)
+        .eq('status', 'failed')
+        .select('id')
+        .maybeSingle()
+      if (retryError || !retried) return { status: 'failed', errorMessage: retryError?.message || 'Email-i i njejte po procesohet.', skipped: true }
+      logId = retried.id
+    }
+
+    if (!logId) {
+      const { data: claimed, error: claimError } = await admin.from('email_logs').insert({
+        email_type: input.emailType,
+        recipient,
+        leave_request_id: input.leaveRequestId,
+        status: 'pending',
+        dedupe_key: dedupeKey
+      }).select('id').maybeSingle()
+
+      if (claimError?.code === '23505') {
+        const { data: duplicate } = await admin.from('email_logs').select('id, status').eq('dedupe_key', dedupeKey).maybeSingle()
+        return { status: (duplicate?.status || 'pending') as EmailLogStatus, errorMessage: null, skipped: true }
+      }
+      if (claimError || !claimed) throw createError({ statusCode: 500, statusMessage: claimError?.message || 'Email-i nuk mund te planifikohej.' })
+      logId = claimed.id
+    }
+  }
+
   let status: 'sent' | 'failed' = 'failed'
   let errorMessage: string | null = null
 
@@ -54,16 +98,17 @@ export async function sendBrevoEmail(event: any, input: EmailInput) {
   }
 
   try {
-    const admin = createClient(String(config.public.supabase.url), String(config.supabaseServiceRoleKey), {
-      auth: { autoRefreshToken: false, persistSession: false }
-    })
-    await admin.from('email_logs').insert({
-      email_type: input.emailType,
-      recipient,
-      leave_request_id: input.leaveRequestId || null,
-      status,
-      error_message: errorMessage
-    })
+    if (logId) {
+      await admin.from('email_logs').update({ status, error_message: errorMessage }).eq('id', logId)
+    } else {
+      await admin.from('email_logs').insert({
+        email_type: input.emailType,
+        recipient,
+        leave_request_id: input.leaveRequestId || null,
+        status,
+        error_message: errorMessage
+      })
+    }
   } catch {
     // Email log failure must not hide the original email result.
   }
