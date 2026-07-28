@@ -33,6 +33,12 @@ onMounted(() => {
   // the session in the URL hash. Forward those sessions to password setup.
   if (hash.includes('access_token=') || hash.includes('type=invite')) {
     window.location.replace(`/auth/confirm${hash}`)
+    return
+  }
+
+  if (hash.includes('error_code=otp_expired')) {
+    errorMessage.value = 'Ftesa ka skaduar. Kërko dërgimin e një ftese të re.'
+    window.history.replaceState({}, '', window.location.pathname)
   }
 })
 </script>

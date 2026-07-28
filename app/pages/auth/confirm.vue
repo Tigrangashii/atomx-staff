@@ -2,14 +2,23 @@
 definePageMeta({ layout: false })
 
 const supabase = useSupabaseClient()
+const route = useRoute()
 const password = ref('')
 const passwordConfirmation = ref('')
 const loading = ref(true)
 const saving = ref(false)
 const ready = ref(false)
 const errorMessage = ref('')
+const pendingConfirmationUrl = ref('')
 
 async function checkInviteSession() {
+  const confirmationUrl = route.query.confirmation_url
+  if (typeof confirmationUrl === 'string' && confirmationUrl) {
+    pendingConfirmationUrl.value = confirmationUrl
+    loading.value = false
+    return
+  }
+
   const { data } = await supabase.auth.getSession()
 
   if (data.session) {
@@ -19,6 +28,12 @@ async function checkInviteSession() {
   }
 
   loading.value = false
+}
+
+function continueInvitation() {
+  if (pendingConfirmationUrl.value) {
+    window.location.assign(pendingConfirmationUrl.value)
+  }
 }
 
 async function setPassword() {
@@ -69,6 +84,10 @@ onMounted(async () => {
       </div>
 
       <div v-if="loading" class="py-6 text-center text-sm text-slate-500">Duke verifikuar ftesën...</div>
+      <div v-else-if="pendingConfirmationUrl" class="space-y-5 text-center">
+        <p class="text-sm leading-6 text-slate-600">Kliko butonin për ta aktivizuar ftesën dhe për të vendosur fjalëkalimin.</p>
+        <UButton label="Vazhdo me ftesën" block size="lg" @click="continueInvitation" />
+      </div>
       <UAlert v-else-if="errorMessage" color="error" variant="subtle" title="Ftesa nuk mund të përdoret" :description="errorMessage" />
 
       <form v-else-if="ready" class="space-y-5" @submit.prevent="setPassword">
