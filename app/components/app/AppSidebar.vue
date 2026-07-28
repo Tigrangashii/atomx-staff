@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const supabase = useSupabaseClient()
 const role = ref<'owner' | 'manager' | 'user'>('user')
-const settingsOpen = ref(true)
+const settingsOpen = ref(false)
 
 const navigation = computed(() => [
   { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/' },
@@ -32,7 +32,7 @@ onMounted(loadRole)
   <UDashboardSidebar
     collapsible
     :ui="{
-      root: 'bg-white border-r border-default',
+      root: 'bg-default border-r border-default',
       header: 'p-4',
       body: 'p-3',
       footer: 'p-3 border-t border-default'
@@ -65,7 +65,6 @@ onMounted(loadRole)
         <button
           type="button"
           class="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted transition-colors hover:bg-elevated hover:text-highlighted"
-          :class="{ 'bg-primary/10 font-semibold text-primary': $route.path.startsWith('/settings') }"
           @click="settingsOpen = !settingsOpen"
         >
           <UIcon name="i-lucide-settings" class="size-5 shrink-0" />

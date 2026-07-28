@@ -27,3 +27,29 @@ a { color: inherit; text-decoration: none; }
 .dashboard-page > .rounded-lg [class*="divide-y"] { box-shadow: 0 4px 14px rgb(23 32 51 / 3%); }
 .dashboard-page > .rounded-lg [class*="divide-y"] > div { transition: background-color .2s ease; }
 @media (max-width: 900px) { .sidebar { width: 220px; flex-basis: 220px; }.stats-grid { grid-template-columns: repeat(2, 1fr); }.app-header, .page-content { padding-left: 24px; padding-right: 24px; } } @media (max-width: 640px) { .sidebar { display: none; }.stats-grid { grid-template-columns: 1fr; }.page-intro { align-items: flex-start; flex-direction: column; text-align: center; }.page-content { padding: 64px 16px 20px; }.page-content h2 { text-align: center; }.page-content h2 + .muted { text-align: center; } }
+
+/* Keep the custom layout in sync with Nuxt UI's dark color mode. */
+html.dark {
+  --primary: #8db0ff;
+  --primary-soft: #1d2b4d;
+  --text: #e6edf8;
+  --muted: #a7b5ca;
+  --border: #2d3a50;
+  --surface: #111a2d;
+  --background: #0b1220;
+}
+
+html.dark body { background: var(--background); color: var(--text); }
+html.dark .app-header,
+html.dark .sidebar,
+html.dark .date-pill,
+html.dark .stat-card,
+html.dark .empty-panel { background: var(--surface); border-color: var(--border); }
+html.dark .nav-item { color: var(--muted); }
+html.dark .nav-item:hover,
+html.dark .nav-item-active { background: var(--primary-soft); color: var(--primary); }
+html.dark .stat-icon { border-color: color-mix(in srgb, var(--primary) 25%, var(--border)); background: linear-gradient(145deg, var(--primary-soft), var(--surface)); }
+html.dark .stat-value,
+html.dark .empty-panel h3 { color: var(--text); }
+html.dark .dark-mode-safe,
+html.dark .bg-white { background-color: var(--surface) !important; }
