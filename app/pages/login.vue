@@ -2,6 +2,7 @@
 definePageMeta({ layout: false })
 
 const supabase = useSupabaseClient()
+const route = useRoute()
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
@@ -27,6 +28,12 @@ async function login() {
 }
 
 onMounted(() => {
+  const confirmationUrl = route.query.confirmation_url
+  if (typeof confirmationUrl === 'string' && confirmationUrl) {
+    window.location.replace(`/auth/confirm?confirmation_url=${encodeURIComponent(confirmationUrl)}`)
+    return
+  }
+
   const hash = window.location.hash
 
   // Supabase invite links may return to the configured Site URL with
