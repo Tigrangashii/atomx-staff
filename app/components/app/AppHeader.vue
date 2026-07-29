@@ -73,12 +73,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <header class="flex min-h-16 items-center justify-between gap-3 border-b border-default bg-default/95 px-4 backdrop-blur sm:px-6">
+  <header class="relative z-40 flex min-h-16 items-center justify-between gap-2 border-b border-default bg-default/95 pl-16 pr-3 backdrop-blur sm:gap-3 sm:px-6">
     <div class="min-w-0">
-      <p class="truncate text-base font-semibold text-highlighted sm:text-lg">Mirë se erdhe, {{ profileName }}</p>
+      <p class="truncate text-xs font-semibold text-highlighted sm:text-lg">Mirë se erdhe, {{ profileName }}</p>
     </div>
 
-    <div class="flex shrink-0 items-center gap-2">
+    <div class="flex shrink-0 items-center gap-0.5 sm:gap-2">
       <UPopover v-model:open="notificationsOpen" :ui="{ content: 'w-[min(24rem,calc(100vw-2rem))] p-0' }">
         <div class="relative inline-flex">
           <UButton color="neutral" variant="ghost" icon="i-lucide-bell" aria-label="Njoftimet" class="cursor-pointer" />
