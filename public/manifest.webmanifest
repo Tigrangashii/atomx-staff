@@ -1,0 +1,25 @@
+{
+  "name": "AtomX Staff",
+  "short_name": "AtomX Staff",
+  "description": "Menaxhimi i stafit për AtomX Solutions",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#287cf5",
+  "lang": "sq",
+  "icons": [
+    {
+      "src": "/images/Logo.jpeg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/Logo.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -125,6 +125,14 @@ async function uploadDocument() {
     errorMessage.value = documentError.message
   } else {
     successMessage.value = 'Dokumenti u ngarkua me sukses.'
+    try {
+      await $fetch('/api/notifications/company-document', {
+        method: 'POST',
+        body: { title: documentForm.title.trim() }
+      })
+    } catch (notificationError) {
+      console.warn('[Company document notification]', notificationError)
+    }
     documentForm.title = ''
     documentForm.description = ''
     selectedFile.value = null

@@ -23,7 +23,17 @@ export default defineNuxtConfig({
         {
           name: 'description',
           content: 'Staff management platform for AtomX Solutions'
-        }
+        },
+        { name: 'theme-color', content: '#f4f7fb' },
+        { name: 'mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+        { name: 'apple-mobile-web-app-title', content: 'AtomX Staff' }
+      ],
+      link: [
+        { rel: 'manifest', href: '/manifest.webmanifest' },
+        { rel: 'icon', type: 'image/jpeg', href: '/images/Logo.jpeg' },
+        { rel: 'apple-touch-icon', href: '/images/Logo.jpeg' }
       ]
     }
   }
