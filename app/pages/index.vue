@@ -114,8 +114,7 @@ onBeforeUnmount(() => {
 
     <div class="page-intro">
       <div class="w-full text-center sm:w-auto sm:text-left">
-        <h2 v-if="canSeeDashboard">Mirë se erdhe, {{ fullName }}</h2>
-        <h2 v-else>Mirë se erdhe në AtomX Staff</h2>
+        <h2 class="text-2xl font-semibold text-highlighted">Dashboard</h2>
         <p class="muted">{{ canSeeDashboard ? 'Menaxho ekipin, pushimet dhe aktivitetin e përditshëm.' : 'Regjistro hyrjen në punë për të parë panelin tënd.' }}</p>
       </div>
       <span class="date-pill flex flex-col items-center gap-0.5 self-center text-center sm:self-auto sm:items-end sm:text-right"><span>{{ currentDateLabel }}</span><span class="text-sm font-medium text-muted">{{ currentTimeLabel }}</span></span>
