@@ -35,6 +35,7 @@ const rejectionModalOpen = ref(false)
 const selectedRequest = ref<LeaveRequest | null>(null)
 const rejectionReason = ref('')
 const medicalCertificate = ref<File | null>(null)
+const certificateLoadingId = ref<string | null>(null)
 const officialHolidayDates = ref<Set<string>>(new Set())
 
 const form = reactive({
@@ -246,6 +247,20 @@ function statusLabel(status: LeaveRequest['status']) {
   return { pending: 'Në pritje', approved: 'Aprovuar', rejected: 'Refuzuar', cancelled: 'Anuluar' }[status]
 }
 
+async function viewMedicalCertificate(request: LeaveRequest) {
+  if (!request.medical_certificate_path) return
+  certificateLoadingId.value = request.id
+  const { data, error } = await supabase.storage
+    .from('medical-certificates')
+    .createSignedUrl(request.medical_certificate_path, 60 * 5)
+  certificateLoadingId.value = null
+  if (error || !data?.signedUrl) {
+    errorMessage.value = error?.message || 'Dëshmia mjekësore nuk mund të hapet.'
+    return
+  }
+  window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+}
+
 onMounted(load)
 </script>
 
@@ -264,13 +279,14 @@ onMounted(load)
       <div v-if="loading" class="space-y-3"><USkeleton v-for="i in 4" :key="i" class="h-12 w-full" /></div>
       <div v-else-if="filteredRequests.length === 0" class="py-12 text-center text-muted">Nuk ka kërkesa për pushim.</div>
       <div v-else class="overflow-x-auto">
-        <table class="w-full min-w-[760px] text-left text-sm">
-          <thead class="border-b border-default text-xs uppercase text-muted"><tr><th class="px-4 py-3">Punëtori</th><th class="px-4 py-3">Lloji</th><th class="px-4 py-3">Periudha</th><th class="px-4 py-3">Arsyeja</th><th class="px-4 py-3">Statusi</th><th v-if="canReview" class="px-4 py-3">Veprime</th></tr></thead>
+        <table class="w-full min-w-[900px] text-left text-sm">
+          <thead class="border-b border-default text-xs uppercase text-muted"><tr><th class="px-4 py-3">Punëtori</th><th class="px-4 py-3">Lloji</th><th class="px-4 py-3">Periudha</th><th class="px-4 py-3">Arsyeja</th><th class="px-4 py-3">Dëshmia mjekësore</th><th class="px-4 py-3">Statusi</th><th v-if="canReview" class="px-4 py-3">Veprime</th></tr></thead>
           <tbody><tr v-for="request in filteredRequests" :key="request.id" class="border-b border-default last:border-0">
             <td class="px-4 py-4 font-medium text-highlighted">{{ request.employee?.full_name || 'Punëtori' }}</td>
             <td class="px-4 py-4 text-muted">{{ leaveTypeLabel(request.leave_type) }}</td>
             <td class="px-4 py-4 text-muted">{{ request.start_date }} – {{ request.end_date }}</td>
             <td class="max-w-xs px-4 py-4 text-muted"><span>{{ request.reason || '—' }}</span><span v-if="request.status === 'rejected' && request.rejection_reason" class="mt-1 block text-xs text-error">Refuzim: {{ request.rejection_reason }}</span></td>
+            <td class="px-4 py-4"><UButton v-if="request.medical_certificate_path" size="xs" icon="i-lucide-file-image" label="Shiko dëshminë" color="neutral" variant="soft" :loading="certificateLoadingId === request.id" @click="viewMedicalCertificate(request)" /><span v-else class="text-muted">—</span></td>
             <td class="px-4 py-4"><UBadge :color="request.status === 'approved' ? 'success' : request.status === 'rejected' ? 'error' : 'warning'" variant="subtle">{{ statusLabel(request.status) }}</UBadge></td>
             <td v-if="canReview" class="px-4 py-4"><div v-if="request.status === 'pending'" class="flex gap-2"><UButton size="xs" color="success" label="Aprovo" :loading="reviewSavingId === request.id" :disabled="reviewSavingId !== null" @click="reviewRequest(request, 'approved')" /><UButton size="xs" color="error" variant="soft" label="Refuzo" :disabled="reviewSavingId !== null" @click="openRejectionModal(request)" /></div><span v-else class="text-muted">—</span></td>
           </tr></tbody>

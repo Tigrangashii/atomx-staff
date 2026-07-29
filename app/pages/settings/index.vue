@@ -20,7 +20,7 @@ const successMessage = ref('')
 const selectedFile = ref<File | null>(null)
 const documentForm = reactive({ title: '', description: '' })
 const profileForm = reactive({ fullName: '', position: '', phone: '' })
-const companyForm = reactive({ companyName: 'AtomX Solutions', workStartTime: '08:00', workEndTime: '16:00', breakMinutes: 30 })
+const companyForm = reactive({ companyName: 'AtomX Solutions', workStartTime: '08:00', workEndTime: '17:00', breakMinutes: 60 })
 
 const canManageDocuments = computed(() => profile.value?.role === 'owner' || profile.value?.role === 'manager')
 const activeTab = computed(() => route.query.tab === 'company' ? 'company' : 'profile')
@@ -61,7 +61,7 @@ async function load() {
   companyForm.companyName = companyData?.company_name || 'AtomX Solutions'
   companyForm.workStartTime = companyData?.work_start_time?.slice(0, 5) || '08:00'
   companyForm.workEndTime = companyData?.work_end_time?.slice(0, 5) || '16:00'
-  companyForm.breakMinutes = companyData?.break_minutes ?? 30
+  companyForm.breakMinutes = companyData?.break_minutes ?? 60
   loading.value = false
 }
 

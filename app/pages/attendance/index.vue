@@ -22,7 +22,7 @@ const today = new Date().toISOString().slice(0, 10)
 const current = ref<Attendance | null>(null)
 const records = ref<Attendance[]>([])
 const employees = ref<Employee[]>([])
-const companySettings = ref<CompanySettings>({ work_start_time: '08:00', work_end_time: '16:00', break_minutes: 30 })
+const companySettings = ref<CompanySettings>({ work_start_time: '08:00', work_end_time: '17:00', break_minutes: 60 })
 const role = ref<Role>('user')
 const loading = ref(true)
 const saving = ref(false)
@@ -45,7 +45,15 @@ function time(value: string | null) {
 function workMinutes(record: Attendance | null) {
   if (!record?.check_in || !record.check_out) return null
   let minutes = (Date.parse(record.check_out) - Date.parse(record.check_in)) / 60000
-  if (record.break_out && record.break_in) minutes -= (Date.parse(record.break_in) - Date.parse(record.break_out)) / 60000
+  // Pauza standarde zbritet gjithmonë. Nëse pauza reale është më e gjatë,
+  // zbritet koha reale e pauzës; pauza më e shkurtër se standardi nuk krijon orë shtesë.
+  const standardBreakMinutes = Math.max(0, Number(companySettings.value.break_minutes) || 0)
+  let breakMinutes = standardBreakMinutes
+  if (record.break_out && record.break_in) {
+    const actualBreakMinutes = (Date.parse(record.break_in) - Date.parse(record.break_out)) / 60000
+    breakMinutes = Math.max(standardBreakMinutes, actualBreakMinutes)
+  }
+  minutes -= breakMinutes
   return Math.max(0, Math.round(minutes))
 }
 
