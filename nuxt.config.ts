@@ -28,12 +28,14 @@ export default defineNuxtConfig({
         { name: 'mobile-web-app-capable', content: 'yes' },
         { name: 'apple-mobile-web-app-capable', content: 'yes' },
         { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
-        { name: 'apple-mobile-web-app-title', content: 'AtomX Staff' }
+        { name: 'apple-mobile-web-app-title', content: 'AtomX Staff' },
+        { name: 'application-name', content: 'AtomX Staff' }
       ],
       link: [
         { rel: 'manifest', href: '/manifest.webmanifest' },
-        { rel: 'icon', type: 'image/jpeg', href: '/images/Logo.jpeg' },
-        { rel: 'apple-touch-icon', href: '/images/Logo.jpeg' }
+        { rel: 'icon', type: 'image/png', sizes: '192x192', href: '/icons/icon-192.png' },
+        { rel: 'icon', type: 'image/png', sizes: '512x512', href: '/icons/icon-512.png' },
+        { rel: 'apple-touch-icon', type: 'image/png', sizes: '180x180', href: '/icons/apple-touch-icon.png' }
       ]
     }
   }
