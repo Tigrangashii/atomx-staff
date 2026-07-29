@@ -86,6 +86,7 @@ create table public.leave_requests (
   end_date date not null,
   reason text,
   rejection_reason text,
+  medical_certificate_path text,
   status public.leave_status not null default 'pending',
   approved_by uuid references public.profiles(id) on delete set null,
   approved_at timestamptz,
@@ -93,7 +94,7 @@ create table public.leave_requests (
   constraint leave_dates_valid check (end_date >= start_date),
   constraint leave_requests_no_approved_overlap exclude using gist (
     employee_id with =,
-    daterange(start_date, end_date, '[]') with &&
+    daterange(start_date, end_date, '[)') with &&
   ) where (status = 'approved')
 );
 

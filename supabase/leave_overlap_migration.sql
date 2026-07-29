@@ -10,6 +10,6 @@ alter table public.leave_requests
   add constraint leave_requests_no_approved_overlap
   exclude using gist (
     employee_id with =,
-    daterange(start_date, end_date, '[]') with &&
+    daterange(start_date, end_date, '[)') with &&
   )
   where (status = 'approved');

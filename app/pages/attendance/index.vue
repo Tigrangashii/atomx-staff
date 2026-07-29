@@ -73,7 +73,8 @@ function lateMinutes(record: Attendance | null) {
   const [hours, minutes] = companySettings.value.work_start_time.slice(0, 5).split(':').map(Number)
   const planned = new Date(actual)
   planned.setHours(hours, minutes, 0, 0)
-  return Math.max(0, Math.round((actual.getTime() - planned.getTime()) / 60000))
+  // Count only complete minutes: 08:00:40 is still on time.
+  return Math.max(0, Math.floor((actual.getTime() - planned.getTime()) / 60000))
 }
 
 function attendanceStatus(record: Attendance | null) {

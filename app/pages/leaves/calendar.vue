@@ -58,12 +58,6 @@ const filteredRequests = computed(() => requests.value.filter((request) => {
   return employeeMatches && statusMatches
 }))
 
-function addDay(date: string) {
-  const next = new Date(`${date}T00:00:00`)
-  next.setDate(next.getDate() + 1)
-  return next.toISOString().slice(0, 10)
-}
-
 function eventColor(status: LeaveStatus) {
   return { approved: '#16a34a', pending: '#f59e0b', rejected: '#dc2626', cancelled: '#64748b' }[status]
 }
@@ -72,7 +66,8 @@ const events = computed(() => filteredRequests.value.map(request => ({
   id: request.id,
   title: `${request.employee?.full_name || 'Punëtori'} · ${leaveTypeLabels[request.leave_type]}`,
   start: request.start_date,
-  end: addDay(request.end_date),
+    // Data e fundit është dita e kthimit në punë; FullCalendar e përdor end si kufi ekskluziv.
+    end: request.end_date,
   allDay: true,
   backgroundColor: eventColor(request.status),
   borderColor: eventColor(request.status),

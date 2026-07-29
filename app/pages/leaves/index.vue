@@ -9,10 +9,12 @@ type LeaveRequest = {
   end_date: string
   reason: string | null
   rejection_reason: string | null
+  medical_certificate_path: string | null
   status: 'pending' | 'approved' | 'rejected' | 'cancelled'
   employee?: { full_name: string } | null
 }
 type LeaveProfile = { id: string; full_name: string; contract_date: string | null; annual_leave_days: number; role: 'owner' | 'manager' | 'user' }
+type OfficialHoliday = { holiday_date: string }
 
 definePageMeta({ middleware: ['auth'] })
 
@@ -32,6 +34,8 @@ const reviewSavingId = ref<string | null>(null)
 const rejectionModalOpen = ref(false)
 const selectedRequest = ref<LeaveRequest | null>(null)
 const rejectionReason = ref('')
+const medicalCertificate = ref<File | null>(null)
+const officialHolidayDates = ref<Set<string>>(new Set())
 
 const form = reactive({
   leaveType: 'annual' as LeaveRequest['leave_type'],
@@ -57,9 +61,21 @@ const filteredRequests = computed(() => {
 })
 
 function leaveDays(request: LeaveRequest) {
-  const start = new Date(`${request.start_date}T00:00:00`)
-  const end = new Date(`${request.end_date}T00:00:00`)
-  return Math.max(1, Math.floor((end.getTime() - start.getTime()) / 86400000) + 1)
+  const [startYear, startMonth, startDay] = request.start_date.split('-').map(Number)
+  const [endYear, endMonth, endDay] = request.end_date.split('-').map(Number)
+  const current = new Date(startYear, startMonth - 1, startDay)
+  const end = new Date(endYear, endMonth - 1, endDay)
+  let days = 0
+
+  // Data e fundit është dita e kthimit në punë, prandaj nuk përfshihet në pushim.
+  while (current < end) {
+    const weekday = current.getDay()
+    const dateKey = [current.getFullYear(), String(current.getMonth() + 1).padStart(2, '0'), String(current.getDate()).padStart(2, '0')].join('-')
+    if (weekday !== 0 && weekday !== 6 && !officialHolidayDates.value.has(dateKey)) days++
+    current.setDate(current.getDate() + 1)
+  }
+
+  return days
 }
 
 const balances = computed(() => leaveProfiles.value.map((profile) => {
@@ -87,11 +103,18 @@ async function load() {
 
   const { data, error } = await supabase
     .from('leave_requests')
-    .select('id, employee_id, email, phone, leave_type, start_date, end_date, reason, rejection_reason, status, employee:profiles!leave_requests_employee_id_fkey(full_name)')
+    .select('id, employee_id, email, phone, leave_type, start_date, end_date, reason, rejection_reason, medical_certificate_path, status, employee:profiles!leave_requests_employee_id_fkey(full_name)')
     .order('created_at', { ascending: false })
 
   if (error) errorMessage.value = error.message
   requests.value = (data || []) as LeaveRequest[]
+
+  const { data: holidays, error: holidaysError } = await supabase
+    .from('official_holidays')
+    .select('holiday_date')
+  if (holidaysError && holidaysError.code !== '42P01') errorMessage.value = holidaysError.message
+  officialHolidayDates.value = new Set(((holidays || []) as OfficialHoliday[]).map(holiday => holiday.holiday_date))
+
   if (canReview.value) {
     const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, full_name, contract_date, annual_leave_days, role').order('full_name')
     if (profilesError) errorMessage.value = profilesError.message
@@ -108,10 +131,19 @@ function openModal() {
   modalOpen.value = true
 }
 
+function onMedicalCertificateChange(event: Event) {
+  medicalCertificate.value = (event.target as HTMLInputElement).files?.[0] || null
+}
+
 async function submitRequest() {
   errorMessage.value = ''
   if (form.endDate < form.startDate) {
     errorMessage.value = 'Data e përfundimit duhet të jetë pas datës së fillimit.'
+    return
+  }
+
+  if (form.leaveType === 'sick' && !medicalCertificate.value) {
+    errorMessage.value = 'Për pushimin mjekësor duhet të ngarkosh vërtetimin e mjekut.'
     return
   }
 
@@ -134,7 +166,7 @@ async function submitRequest() {
   }
 
   const overlapsApprovedLeave = (approvedLeaves || []).some((leave) => (
-    form.startDate <= leave.end_date && form.endDate >= leave.start_date
+    form.startDate < leave.end_date && form.endDate > leave.start_date
   ))
 
   if (overlapsApprovedLeave) {
@@ -144,10 +176,15 @@ async function submitRequest() {
 
   saving.value = true
   try {
-    await $fetch('/api/leaves/request', {
-      method: 'POST',
-      body: { leaveType: form.leaveType, startDate: form.startDate, endDate: form.endDate, email: form.email, phone: form.phone, reason: form.reason }
-    })
+    const payload = new FormData()
+    payload.append('leaveType', form.leaveType)
+    payload.append('startDate', form.startDate)
+    payload.append('endDate', form.endDate)
+    payload.append('email', form.email)
+    payload.append('phone', form.phone)
+    payload.append('reason', form.reason)
+    if (medicalCertificate.value) payload.append('medicalCertificate', medicalCertificate.value)
+    await $fetch('/api/leaves/request', { method: 'POST', body: payload })
   } catch (error: any) {
     errorMessage.value = error?.data?.statusMessage || error?.data?.message || error?.message || 'Kërkesa nuk u dërgua.'
     saving.value = false
@@ -156,6 +193,7 @@ async function submitRequest() {
   saving.value = false
 
   modalOpen.value = false
+  medicalCertificate.value = null
   successMessage.value = 'Kërkesa për pushim u dërgua.'
   await load()
 }
@@ -261,6 +299,9 @@ onMounted(load)
         <div class="grid gap-4 sm:grid-cols-2"><UFormField label="Nga" required><UInput v-model="form.startDate" type="date" class="w-full" /></UFormField><UFormField label="Deri" required><UInput v-model="form.endDate" type="date" class="w-full" /></UFormField></div>
         <div class="grid gap-4 sm:grid-cols-2"><UFormField label="Email" required><UInput v-model="form.email" type="email" placeholder="email@atomx-solutions.com" class="w-full" /></UFormField><UFormField label="Nr. i telefonit"><UInput v-model="form.phone" type="tel" placeholder="+383..." class="w-full" /></UFormField></div>
         <UFormField label="Arsyeja"><UTextarea v-model="form.reason" placeholder="Shkruaj arsyen e pushimit..." class="w-full" /></UFormField>
+        <UFormField v-if="form.leaveType === 'sick'" label="Vërtetimi mjekësor" description="Ngarko foton ose PDF-in e lëshuar nga mjeku." required>
+          <input type="file" accept="image/*,.pdf" required class="block w-full rounded-md border border-default bg-default px-3 py-2 text-sm text-highlighted file:mr-3 file:rounded file:border-0 file:bg-primary file:px-3 file:py-1 file:text-white" @change="onMedicalCertificateChange" />
+        </UFormField>
         <div class="flex justify-end gap-3 pt-3"><UButton color="neutral" variant="ghost" label="Anulo" type="button" @click="modalOpen = false" /><UButton type="submit" label="Dërgo kërkesën" :loading="saving" /></div>
       </form></template>
     </UModal>

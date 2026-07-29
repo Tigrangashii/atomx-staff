@@ -8,9 +8,15 @@ export default defineEventHandler(async (event) => {
   const authUser = await serverSupabaseUser(event)
   if (!authUser?.sub) throw createError({ statusCode: 401, statusMessage: 'Sesioni ka skaduar.' })
 
-  const body = await readBody<{ leaveType: string; startDate: string; endDate: string; email?: string; phone?: string; reason?: string }>(event)
+  const parts = await readMultipartFormData(event)
+  const fields = Object.fromEntries((parts || []).filter(part => !part.filename).map(part => [part.name, part.data?.toString() || ''])) as Record<string, string>
+  const certificate = (parts || []).find(part => part.name === 'medicalCertificate' && part.filename)
+  const body = fields as { leaveType: string; startDate: string; endDate: string; email?: string; phone?: string; reason?: string }
   if (!body.startDate || !body.endDate || body.endDate < body.startDate) {
     throw createError({ statusCode: 400, statusMessage: 'Periudha e pushimit nuk është valide.' })
+  }
+  if (body.leaveType === 'sick' && !certificate?.data?.length) {
+    throw createError({ statusCode: 400, statusMessage: 'Vërtetimi mjekësor është i detyrueshëm.' })
   }
 
   const supabase = await serverSupabaseClient(event)
@@ -30,6 +36,21 @@ export default defineEventHandler(async (event) => {
 
   const config = useRuntimeConfig(event)
   const admin = createClient(String(config.public.supabase.url), String(config.supabaseServiceRoleKey), { auth: { autoRefreshToken: false, persistSession: false } })
+  if (certificate?.data?.length) {
+    const safeName = (certificate.filename || 'certificate').replace(/[^a-zA-Z0-9._-]/g, '-')
+    const certificatePath = `${request.id}/${safeName}`
+    const { error: uploadError } = await admin.storage.from('medical-certificates').upload(certificatePath, certificate.data, { contentType: certificate.type || 'application/octet-stream', upsert: false })
+    if (uploadError) {
+      await admin.from('leave_requests').delete().eq('id', request.id)
+      throw createError({ statusCode: 400, statusMessage: uploadError.message })
+    }
+    const { error: pathError } = await admin.from('leave_requests').update({ medical_certificate_path: certificatePath }).eq('id', request.id)
+    if (pathError) {
+      await admin.storage.from('medical-certificates').remove([certificatePath])
+      await admin.from('leave_requests').delete().eq('id', request.id)
+      throw createError({ statusCode: 400, statusMessage: pathError.message })
+    }
+  }
   const { data: reviewers } = await admin.from('profiles').select('id, email').in('role', ['owner', 'manager']).eq('is_active', true).not('email', 'is', null)
   const name = profile.full_name || authUser.email || 'Punëtori'
   const subject = 'Kërkesë e re për pushim'
