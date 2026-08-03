@@ -29,7 +29,10 @@ drop policy if exists "Authenticated users can view active projects" on public.p
 create policy "Authenticated users can view active projects"
 on public.projects for select to authenticated
 using (
-  (select public.current_user_role()) = 'owner'
+  (
+    is_active = true
+    and (select public.current_user_role()) in ('owner', 'manager')
+  )
   or (
     is_active = true
     and exists (

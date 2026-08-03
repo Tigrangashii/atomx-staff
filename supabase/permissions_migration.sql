@@ -23,22 +23,14 @@ create policy "Role based report access"
 on public.daily_reports for select to authenticated
 using (
   employee_id = auth.uid()
-  or (select public.current_user_role()) = 'owner'
-  or (
-    (select public.current_user_role()) = 'manager'
-    and exists (select 1 from public.profiles p where p.id = employee_id and p.role = 'user')
-  )
+  or (select public.current_user_role()) in ('owner', 'manager')
 );
 
 create policy "Role based attendance access"
 on public.attendance for select to authenticated
 using (
   employee_id = auth.uid()
-  or (select public.current_user_role()) = 'owner'
-  or (
-    (select public.current_user_role()) = 'manager'
-    and exists (select 1 from public.profiles p where p.id = employee_id and p.role = 'user')
-  )
+  or (select public.current_user_role()) in ('owner', 'manager')
 );
 
 create policy "Role based leave request updates"

@@ -20,6 +20,7 @@ const supabase = useSupabaseClient();
 const user = useSupabaseUser();
 const currentUserId = ref("");
 const reports = ref<DailyReport[]>([]);
+const todaysReport = ref<DailyReport | null>(null);
 const projects = ref<Project[]>([]);
 const role = ref<"owner" | "manager" | "user">("user");
 const profileName = ref("");
@@ -27,10 +28,12 @@ const loading = ref(true);
 const saving = ref(false);
 const errorMessage = ref("");
 const successMessage = ref("");
+const todayDate = formatLocalDate();
 
 const form = reactive({
-  reportDate: new Date().toISOString().slice(0, 10),
+  reportDate: todayDate,
   projectName: "",
+  otherProjectName: "",
   todayWork: "",
   completedTasks: "",
   problems: "",
@@ -44,12 +47,28 @@ const statuses = [
   { label: "Waiting", value: "waiting" },
   { label: "Blocked", value: "blocked" },
 ];
-const projectItems = computed(() =>
-  projects.value.map((project) => ({
+const projectItems = computed(() => [
+  ...projects.value.map((project) => ({
     label: project.name,
     value: project.name,
   })),
+  { label: "Tjeter", value: "Tjeter" },
+]);
+const isOtherProject = computed(() => form.projectName === "Tjeter");
+
+watch(
+  () => form.projectName,
+  (projectName) => {
+    if (projectName !== "Tjeter") form.otherProjectName = "";
+  },
 );
+
+function formatLocalDate(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 async function load() {
   const { data: authData } = await supabase.auth.getUser();
@@ -104,6 +123,17 @@ async function load() {
       : error.message;
   }
   reports.value = (data || []) as DailyReport[];
+
+  const { data: submittedToday, error: submittedTodayError } = await supabase
+    .from("daily_reports")
+    .select(
+      "id, report_date, project_name, content, completed_tasks, problems, hours_worked, project_status, tomorrow_plan",
+    )
+    .eq("employee_id", currentUserId.value)
+    .eq("report_date", todayDate)
+    .maybeSingle();
+  if (submittedTodayError) errorMessage.value = submittedTodayError.message;
+  todaysReport.value = (submittedToday || null) as DailyReport | null;
   loading.value = false;
 }
 
@@ -112,6 +142,7 @@ async function submitReport() {
   successMessage.value = "";
   if (
     !form.projectName ||
+    (isOtherProject.value && !form.otherProjectName.trim()) ||
     !form.todayWork ||
     !form.completedTasks ||
     !form.tomorrowPlan
@@ -126,21 +157,38 @@ async function submitReport() {
     return;
   }
   currentUserId.value = currentUser.id;
+
+  const { data: existingReport, error: existingReportError } = await supabase
+    .from("daily_reports")
+    .select("id")
+    .eq("employee_id", currentUserId.value)
+    .eq("report_date", form.reportDate)
+    .maybeSingle();
+  if (existingReportError) {
+    errorMessage.value = existingReportError.message;
+    return;
+  }
+  if (existingReport) {
+    errorMessage.value = "Raporti për këtë datë është dorëzuar.";
+    await load();
+    return;
+  }
+
   saving.value = true;
-  const { error } = await supabase.from("daily_reports").upsert(
-    {
-      employee_id: currentUserId.value,
-      report_date: form.reportDate,
-      project_name: form.projectName,
-      content: form.todayWork,
-      completed_tasks: form.completedTasks,
-      problems: form.problems || null,
-      hours_worked: form.hoursWorked ? Number(form.hoursWorked) : null,
-      project_status: form.projectStatus,
-      tomorrow_plan: form.tomorrowPlan,
-    },
-    { onConflict: "employee_id,report_date" },
-  );
+  const projectName = isOtherProject.value
+    ? `Tjeter - ${form.otherProjectName.trim()}`
+    : form.projectName;
+  const { error } = await supabase.from("daily_reports").insert({
+    employee_id: currentUserId.value,
+    report_date: form.reportDate,
+    project_name: projectName,
+    content: form.todayWork,
+    completed_tasks: form.completedTasks,
+    problems: form.problems || null,
+    hours_worked: form.hoursWorked ? Number(form.hoursWorked) : null,
+    project_status: form.projectStatus,
+    tomorrow_plan: form.tomorrowPlan,
+  });
   saving.value = false;
   if (error) {
     errorMessage.value = error.message.includes("daily_reports.project_name")
@@ -179,7 +227,100 @@ onMounted(load);
       :description="errorMessage"
     />
 
-    <UCard
+    <UCard v-if="loading">
+      <USkeleton class="h-64 w-full" />
+    </UCard>
+
+    <UCard v-else-if="todaysReport">
+      <template #header>
+        <div class="flex items-start gap-3">
+          <div
+            class="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"
+          >
+            <UIcon name="i-lucide-check" class="size-5" />
+          </div>
+
+          <div>
+            <h3 class="font-semibold text-highlighted">
+              Raporti për sot është dorëzuar
+            </h3>
+            <p class="mt-1 text-sm text-muted">
+              Nuk mund të dorëzosh raport tjetër për datën
+              {{ todaysReport.report_date }}.
+            </p>
+          </div>
+        </div>
+      </template>
+
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="rounded-md border border-default p-4">
+          <p class="text-xs font-medium uppercase text-muted">Projekti</p>
+          <p class="mt-1 font-medium text-highlighted">
+            {{ todaysReport.project_name }}
+          </p>
+        </div>
+
+        <div class="rounded-md border border-default p-4">
+          <p class="text-xs font-medium uppercase text-muted">Orët</p>
+          <p class="mt-1 font-medium text-highlighted">
+            {{ todaysReport.hours_worked ?? "—" }}
+          </p>
+        </div>
+
+        <div class="rounded-md border border-default p-4">
+          <p class="text-xs font-medium uppercase text-muted">Statusi</p>
+          <p class="mt-1 font-medium text-highlighted">
+            {{ statusLabel(todaysReport.project_status) }}
+          </p>
+        </div>
+
+        <div class="rounded-md border border-default p-4">
+          <p class="text-xs font-medium uppercase text-muted">Data</p>
+          <p class="mt-1 font-medium text-highlighted">
+            {{ todaysReport.report_date }}
+          </p>
+        </div>
+
+        <div class="rounded-md border border-default p-4 md:col-span-2">
+          <p class="text-xs font-medium uppercase text-muted">
+            Çka punove sot?
+          </p>
+          <p class="mt-2 whitespace-pre-wrap text-sm text-muted">
+            {{ todaysReport.content }}
+          </p>
+        </div>
+
+        <div class="rounded-md border border-default p-4 md:col-span-2">
+          <p class="text-xs font-medium uppercase text-muted">
+            Detyrat e përfunduara
+          </p>
+          <p class="mt-2 whitespace-pre-wrap text-sm text-muted">
+            {{ todaysReport.completed_tasks }}
+          </p>
+        </div>
+
+        <div
+          v-if="todaysReport.problems"
+          class="rounded-md border border-default p-4 md:col-span-2"
+        >
+          <p class="text-xs font-medium uppercase text-muted">Problemet</p>
+          <p class="mt-2 whitespace-pre-wrap text-sm text-muted">
+            {{ todaysReport.problems }}
+          </p>
+        </div>
+
+        <div class="rounded-md border border-default p-4 md:col-span-2">
+          <p class="text-xs font-medium uppercase text-muted">
+            Plani për nesër
+          </p>
+          <p class="mt-2 whitespace-pre-wrap text-sm text-muted">
+            {{ todaysReport.tomorrow_plan }}
+          </p>
+        </div>
+      </div>
+    </UCard>
+
+    <UCard v-else
       ><template #header
         ><h3 class="font-semibold text-highlighted">Raporti i ditës</h3>
         <p class="mt-1 text-sm text-muted">
@@ -192,12 +333,20 @@ onMounted(load);
           ><UInput v-model="form.reportDate" type="date" class="w-full"
         /></UFormField>
         <UFormField label="2. Projekti ku jeni i angazhuar aktualisht" required
-          ><USelect
-            v-model="form.projectName"
-            :items="projectItems"
-            placeholder="Zgjedh projektin"
-            class="w-full"
-        /></UFormField>
+          ><div class="space-y-3">
+            <USelect
+              v-model="form.projectName"
+              :items="projectItems"
+              placeholder="Zgjedh projektin"
+              class="w-full"
+            />
+            <UInput
+              v-if="isOtherProject"
+              v-model="form.otherProjectName"
+              placeholder="Shkruaj projektin tjetër"
+              class="w-full"
+            /></div
+        ></UFormField>
         <UFormField
           class="md:col-span-2"
           label="3. Çka punove sot? (Përshkrimi i punës në pika të shkurtra)"

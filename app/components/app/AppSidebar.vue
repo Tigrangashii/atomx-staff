@@ -145,10 +145,10 @@ onMounted(loadRole);
       <UButton
         color="error"
         variant="solid"
-        :icon="collapsed ? 'i-lucide-log-out' : undefined"
+        icon="i-lucide-log-out"
         :block="!collapsed"
         :square="collapsed"
-        class="justify-start"
+        class="justify-start cursor-pointer"
         @click="logout"
       >
         <template v-if="!collapsed">Çkyçu</template>

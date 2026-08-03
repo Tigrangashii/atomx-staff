@@ -46,9 +46,10 @@ const statuses = [
 
 const employeeItems = computed(() => [
   { label: "Të gjithë përdoruesit", value: "all" },
-  ...employees.value
-    .filter((employee) => employee.role === "user")
-    .map((employee) => ({ label: employee.full_name, value: employee.id })),
+  ...employees.value.map((employee) => ({
+    label: employee.full_name,
+    value: employee.id,
+  })),
 ]);
 const projectItems = computed(() => [
   { label: "Të gjitha projektet", value: "all" },

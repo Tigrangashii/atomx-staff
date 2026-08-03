@@ -216,7 +216,7 @@ onBeforeUnmount(() => {
           <div class="p-2">
             <UButton
               color="error"
-              variant="soft"
+              variant="solid"
               icon="i-lucide-log-out"
               label="Çkyçu"
               block

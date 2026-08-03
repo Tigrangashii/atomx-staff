@@ -10,12 +10,17 @@ type Folder = {
   name: string;
   parent_folder_id: string | null;
   created_by: string;
+  created_at: string;
+  creator?: { full_name: string | null; email: string | null } | null;
 };
 type AssignableUser = {
   id: string;
   full_name: string | null;
   email: string | null;
   role: "owner" | "manager" | "user";
+};
+type ProjectMember = AssignableUser & {
+  membership: "owner" | "assigned";
 };
 type ProjectFile = {
   id: string;
@@ -26,6 +31,7 @@ type ProjectFile = {
   folder_id: string | null;
   uploaded_by: string;
   created_at: string;
+  uploader?: { full_name: string | null; email: string | null } | null;
 };
 
 definePageMeta({ middleware: ["auth", "permissions"] });
@@ -49,12 +55,17 @@ const deletingFolder = ref(false);
 const fileDeleteModalOpen = ref(false);
 const fileToDelete = ref<ProjectFile | null>(null);
 const deletingFile = ref(false);
+const filePreviewModalOpen = ref(false);
+const filePreviewUrl = ref("");
+const filePreviewItem = ref<ProjectFile | null>(null);
+const loadingPreview = ref(false);
 const editingDescription = ref(false);
 const savingDescription = ref(false);
 const detailedDescription = ref("");
 const errorMessage = ref("");
 const assignModalOpen = ref(false);
 const assignableUsers = ref<AssignableUser[]>([]);
+const projectMembers = ref<ProjectMember[]>([]);
 const selectedAssigneeIds = ref<string[]>([]);
 const savingAssignments = ref(false);
 
@@ -81,7 +92,7 @@ const parentFolder = computed(() =>
 );
 const uploadLabel = computed(() =>
   currentFolder.value
-    ? `Ngarko ne ${currentFolder.value.name}`
+    ? `Ngarko në ${currentFolder.value.name}`
     : "Ngarko dokument",
 );
 const backTooltip = computed(() =>
@@ -94,7 +105,14 @@ const assignedUsers = computed(() =>
     selectedAssigneeIds.value.includes(user.id),
   ),
 );
-
+const visibleProjectMembers = computed(() =>
+  projectMembers.value.length
+    ? projectMembers.value
+    : assignedUsers.value.map((user) => ({
+        ...user,
+        membership: "assigned" as const,
+      })),
+);
 function goBackFolder() {
   currentFolder.value = parentFolder.value;
 }
@@ -109,6 +127,39 @@ function canDeleteFolder(folder: Folder) {
 
 function canDeleteFile(file: ProjectFile) {
   return isOwner.value || file.uploaded_by === currentUserId.value;
+}
+
+function isPreviewableFile(file: ProjectFile | null) {
+  if (!file) return false;
+  const mimeType = file.mime_type || "";
+  return mimeType.startsWith("image/") || mimeType === "application/pdf";
+}
+
+function isImageFile(file: ProjectFile | null) {
+  return Boolean(file?.mime_type?.startsWith("image/"));
+}
+
+function isPdfFile(file: ProjectFile | null) {
+  return file?.mime_type === "application/pdf";
+}
+
+function displayPerson(
+  person?: { full_name: string | null; email: string | null } | null,
+) {
+  return person?.full_name?.trim() || person?.email || "User";
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const period = hours >= 12 ? "P.M" : "A.M";
+  hours = hours % 12 || 12;
+  return `${day}.${month}.${year}, ${String(hours).padStart(2, "0")}:${minutes} ${period}`;
 }
 
 function toggleAssignee(userId: string, checked: boolean) {
@@ -154,13 +205,15 @@ async function loadWorkspace() {
       .single(),
     supabase
       .from("project_folders")
-      .select("id, name, parent_folder_id, created_by")
+      .select(
+        "id, name, parent_folder_id, created_by, created_at, creator:profiles!project_folders_created_by_fkey(full_name, email)",
+      )
       .eq("project_id", projectId)
       .order("name"),
     supabase
       .from("project_files")
       .select(
-        "id, file_name, storage_path, mime_type, file_size, folder_id, uploaded_by, created_at",
+        "id, file_name, storage_path, mime_type, file_size, folder_id, uploaded_by, created_at, uploader:profiles!project_files_uploaded_by_fkey(full_name, email)",
       )
       .eq("project_id", projectId)
       .order("file_name"),
@@ -174,8 +227,19 @@ async function loadWorkspace() {
   else folders.value = (foldersResult.data || []) as Folder[];
   if (filesResult.error) errorMessage.value = filesResult.error.message;
   else files.value = (filesResult.data || []) as ProjectFile[];
+  await loadProjectMembers();
   if (role.value === "owner") await loadAssignmentData();
   loading.value = false;
+}
+
+async function loadProjectMembers() {
+  try {
+    projectMembers.value = await $fetch<ProjectMember[]>(
+      `/api/projects/${projectId}/members`,
+    );
+  } catch {
+    projectMembers.value = [];
+  }
 }
 
 async function loadAssignmentData() {
@@ -251,11 +315,17 @@ async function saveAssignments() {
     }));
     const { error } = await supabase.from("project_assignments").insert(rows);
     if (error) errorMessage.value = error.message;
+    else {
+      await $fetch("/api/notifications/project-assignment", {
+        method: "POST",
+        body: { projectId, userIds: idsToAdd },
+      }).catch(() => null);
+    }
   }
 
   savingAssignments.value = false;
   if (!errorMessage.value) assignModalOpen.value = false;
-  await loadAssignmentData();
+  await Promise.all([loadAssignmentData(), loadProjectMembers()]);
 }
 
 async function saveDescription() {
@@ -317,6 +387,10 @@ async function confirmRemoveFolder() {
   if (error) {
     errorMessage.value = error.message;
   } else {
+    await $fetch("/api/notifications/project-material-delete", {
+      method: "POST",
+      body: { projectId, name: folder.name, type: "folder" },
+    }).catch(() => null);
     folderDeleteModalOpen.value = false;
     folderToDelete.value = null;
     await loadWorkspace();
@@ -351,7 +425,17 @@ async function handleFileChange(event: Event) {
     if (result.error) {
       errorMessage.value = result.error.message;
       await supabase.storage.from("project-files").remove([path]);
-    } else await loadWorkspace();
+    } else {
+      await $fetch("/api/notifications/project-document", {
+        method: "POST",
+        body: {
+          projectId,
+          fileName: file.name,
+          folderName: currentFolder.value?.name || null,
+        },
+      }).catch(() => null);
+      await loadWorkspace();
+    }
   }
   input.value = "";
   uploading.value = false;
@@ -367,6 +451,35 @@ async function openFile(file: ProjectFile, download = false) {
         .createSignedUrl(file.storage_path, 600);
   if (result.error) errorMessage.value = result.error.message;
   else window.open(result.data.signedUrl, "_blank", "noopener,noreferrer");
+}
+
+async function previewFile(file: ProjectFile) {
+  if (!isPreviewableFile(file)) {
+    await openFile(file, true);
+    return;
+  }
+
+  loadingPreview.value = true;
+  errorMessage.value = "";
+  filePreviewItem.value = file;
+  filePreviewModalOpen.value = true;
+  const result = await supabase.storage
+    .from("project-files")
+    .createSignedUrl(file.storage_path, 600);
+  loadingPreview.value = false;
+  if (result.error) {
+    errorMessage.value = result.error.message;
+    filePreviewModalOpen.value = false;
+    filePreviewItem.value = null;
+  } else {
+    filePreviewUrl.value = result.data.signedUrl;
+  }
+}
+
+function closePreview() {
+  filePreviewModalOpen.value = false;
+  filePreviewUrl.value = "";
+  filePreviewItem.value = null;
 }
 
 function askRemoveFile(file: ProjectFile) {
@@ -401,6 +514,10 @@ async function confirmRemoveFile() {
   if (error) {
     errorMessage.value = error.message;
   } else {
+    await $fetch("/api/notifications/project-material-delete", {
+      method: "POST",
+      body: { projectId, name: file.file_name, type: "document" },
+    }).catch(() => null);
     fileDeleteModalOpen.value = false;
     fileToDelete.value = null;
     await loadWorkspace();
@@ -437,13 +554,14 @@ onMounted(loadWorkspace);
           <p class="muted mt-3">
             {{
               project?.description ||
-              "Menaxho pershkrimin, folderat dhe materialet e projektit."
+              "Menaxho përshkrimin, folderat dhe materialet e projektit."
             }}
           </p>
         </div>
 
-        <div v-if="isOwner" class="flex max-w-md flex-col items-end gap-3">
+        <div class="flex max-w-md flex-col items-end gap-3">
           <UButton
+            v-if="isOwner"
             color="neutral"
             variant="outline"
             icon="i-lucide-user-plus"
@@ -451,22 +569,27 @@ onMounted(loadWorkspace);
             @click="assignModalOpen = true"
           />
 
+          <p class="text-sm font-medium text-highlighted">
+            Anëtarët e projektit
+          </p>
+
           <div
-            v-if="assignedUsers.length"
+            v-if="visibleProjectMembers.length"
             class="flex flex-wrap justify-end gap-2"
           >
             <UBadge
-              v-for="user in assignedUsers"
+              v-for="user in visibleProjectMembers"
               :key="user.id"
               color="primary"
               variant="subtle"
             >
               {{ user.full_name || user.email || "User" }}
+              <span v-if="user.membership === 'owner'"> · Owner</span>
             </UBadge>
           </div>
 
           <p v-else class="text-right text-sm text-muted">
-            Nuk ka user te assignuar.
+            Nuk ka anëtarë të assignuar.
           </p>
         </div>
       </div>
@@ -555,7 +678,7 @@ onMounted(loadWorkspace);
                 {{ currentFolder?.name || "Materialet e projektit" }}
               </h3>
               <p class="text-sm text-muted">
-                Folderat dhe dokumentet e ruajtura ne kete projekt.
+                Folderat dhe dokumentet e ruajtura në këtë projekt.
               </p>
             </div>
           </div>
@@ -605,9 +728,19 @@ onMounted(loadWorkspace);
         >
           <div class="flex w-full items-center gap-3 text-left">
             <UIcon name="i-lucide-folder" class="size-8 text-primary" />
-            <span class="min-w-0 flex-1 truncate font-medium text-highlighted">
-              {{ folder.name }}
-            </span>
+            <div class="min-w-0 flex-1">
+              <p class="truncate font-medium text-highlighted">
+                {{ folder.name }}
+              </p>
+              <p
+                class="mt-2 inline-flex max-w-full rounded-md border border-primary/20 bg-primary/5 px-2 py-1 text-xs text-muted"
+              >
+                <span class="truncate">
+                  Created by {{ displayPerson(folder.creator) }} |
+                  {{ formatDate(folder.created_at) }}
+                </span>
+              </p>
+            </div>
           </div>
 
           <UButton
@@ -641,6 +774,14 @@ onMounted(loadWorkspace);
                 {{ file.mime_type || "Dokument" }} ·
                 {{ formatSize(file.file_size) }}
               </p>
+              <p
+                class="mt-2 inline-flex max-w-full rounded-md border border-primary/20 bg-primary/5 px-2 py-1 text-xs text-muted"
+              >
+                <span class="truncate">
+                  Upload by {{ displayPerson(file.uploader) }} |
+                  {{ formatDate(file.created_at) }}
+                </span>
+              </p>
             </div>
           </div>
 
@@ -651,10 +792,9 @@ onMounted(loadWorkspace);
               variant="outline"
               label="Shiko"
               icon="i-lucide-eye"
-              @click="openFile(file)"
+              @click="previewFile(file)"
             />
             <UButton
-              v-if="canDeleteFile(file)"
               size="xs"
               color="neutral"
               variant="ghost"
@@ -663,6 +803,7 @@ onMounted(loadWorkspace);
               @click="openFile(file, true)"
             />
             <UButton
+              v-if="canDeleteFile(file)"
               size="xs"
               color="error"
               variant="ghost"
@@ -735,7 +876,7 @@ onMounted(loadWorkspace);
             </label>
           </div>
 
-          <p v-else class="text-sm text-muted">Nuk ka user aktiv per assign.</p>
+          <p v-else class="text-sm text-muted">Nuk ka user aktiv për assign.</p>
 
           <div class="flex justify-end gap-2">
             <UButton
@@ -812,6 +953,63 @@ onMounted(loadWorkspace);
               label="Fshije"
               :loading="deletingFile"
               @click="confirmRemoveFile"
+            />
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="filePreviewModalOpen"
+      :title="filePreviewItem?.file_name || 'Preview'"
+      :ui="{ content: 'max-w-5xl' }"
+      @update:open="
+        (open) => {
+          if (!open) closePreview();
+        }
+      "
+    >
+      <template #body>
+        <div class="space-y-4">
+          <div
+            v-if="loadingPreview"
+            class="flex min-h-[24rem] items-center justify-center"
+          >
+            <USkeleton class="h-96 w-full" />
+          </div>
+
+          <img
+            v-else-if="isImageFile(filePreviewItem)"
+            :src="filePreviewUrl"
+            :alt="filePreviewItem?.file_name || 'Preview'"
+            class="max-h-[75vh] w-full rounded-md object-contain"
+          />
+
+          <iframe
+            v-else-if="isPdfFile(filePreviewItem)"
+            :src="filePreviewUrl"
+            class="h-[75vh] w-full rounded-md border border-default"
+            title="Document preview"
+          />
+
+          <div v-else class="text-sm text-muted">
+            Ky dokument nuk mund të shfaqet si preview.
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              label="Mbyll"
+              @click="closePreview"
+            />
+            <UButton
+              color="primary"
+              variant="outline"
+              icon="i-lucide-download"
+              label="Shkarko"
+              :disabled="!filePreviewItem"
+              @click="filePreviewItem && openFile(filePreviewItem, true)"
             />
           </div>
         </div>

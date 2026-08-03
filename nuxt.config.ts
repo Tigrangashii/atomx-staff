@@ -27,6 +27,7 @@ export default defineNuxtConfig({
     head: {
       title: "AtomX Staff",
       meta: [
+        { charset: "utf-8" },
         {
           name: "description",
           content: "Staff management platform for AtomX Solutions",
