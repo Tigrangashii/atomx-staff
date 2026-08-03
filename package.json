@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
+    "format": "prettier --write .",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
@@ -43,6 +44,7 @@
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.120",
+    "prettier": "^3.9.6",
     "vue-tsc": "^3.3.8"
   }
 }

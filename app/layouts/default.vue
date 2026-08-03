@@ -1,8 +1,13 @@
 <template>
-  <UDashboardGroup :ui="{ base: 'relative flex min-h-screen overflow-visible' }">
+  <UDashboardGroup
+    :ui="{ base: 'relative flex min-h-screen overflow-visible' }"
+  >
     <AppSidebar />
 
-    <UDashboardPanel class="min-h-screen flex-1" :ui="{ root: 'min-h-screen', body: 'overflow-visible' }">
+    <UDashboardPanel
+      class="min-h-screen flex-1"
+      :ui="{ root: 'min-h-screen', body: 'overflow-visible' }"
+    >
       <AppHeader />
 
       <main class="page-content pt-0">

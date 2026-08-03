@@ -1,0 +1,6 @@
+.git
+.nuxt
+.output
+.vercel
+node_modules
+build-check.log
